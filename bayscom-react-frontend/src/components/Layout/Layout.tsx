@@ -63,6 +63,8 @@ const menuItems = [
     { text: 'Assets', path: '/inventory/assets' },
     { text: 'Consumables', path: '/inventory/consumables' },
     { text: 'Products', path: '/inventory/products' },
+    { text: 'Staff Requisitions', path: '/inventory/requisitions' },
+    { text: 'Approve Requisitions', path: '/inventory/approvals' },
   ] },
   { text: 'Finance', icon: <AccountBalance />, path: '/finance' },
   { text: 'Human Resources', icon: <People />, path: '/hr' },

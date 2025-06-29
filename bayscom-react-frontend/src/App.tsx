@@ -11,6 +11,8 @@ import Contracts from './pages/Procurement/Contracts';
 import Assets from './pages/Inventory/Assets';
 import Consumables from './pages/Inventory/Consumables';
 import Products from './pages/Inventory/Products';
+import StaffRequisition from './pages/Inventory/StaffRequisition';
+import RequisitionApproval from './pages/Inventory/RequisitionApproval';
 import FinanceOverview from './pages/Finance/FinanceOverview';
 import HRManagement from './pages/HR/HRManagement';
 import Administration from './pages/Admin/Administration';
@@ -51,6 +53,8 @@ function App() {
             <Route path="/inventory/assets" element={<Assets />} />
             <Route path="/inventory/consumables" element={<Consumables />} />
             <Route path="/inventory/products" element={<Products />} />
+            <Route path="/inventory/requisitions" element={<StaffRequisition />} />
+            <Route path="/inventory/approvals" element={<RequisitionApproval />} />
             <Route path="/finance" element={<FinanceOverview />} />
             <Route path="/hr" element={<HRManagement />} />
             <Route path="/logistics" element={<div>Logistics Module - Coming Soon</div>} />
