@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: bayscom_erp
+      POSTGRES_USER: bayscom_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-bayscom_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bayscom_user -d bayscom_erp"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Django Backend
+  backend:
+    build:
+      context: .
+      target: backend-production
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgresql://bayscom_user:${DB_PASSWORD:-bayscom_secure_password}@database:5432/bayscom_erp
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-very-secure-secret-key-here}
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_files:/app/media
+      - static_files:/app/static
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend (React + Next.js via Nginx)
+  frontend:
+    build:
+      context: .
+      target: frontend-production
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/ssl:/etc/nginx/ssl
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/dashboard"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker (for background tasks)
+  celery-worker:
+    build:
+      context: .
+      target: backend-production
+    command: celery -A bayscom_erp worker --loglevel=info
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgresql://bayscom_user:${DB_PASSWORD:-bayscom_secure_password}@database:5432/bayscom_erp
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-very-secure-secret-key-here}
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media_files:/app/media
+
+  # Celery Beat (for scheduled tasks)
+  celery-beat:
+    build:
+      context: .
+      target: backend-production
+    command: celery -A bayscom_erp beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgresql://bayscom_user:${DB_PASSWORD:-bayscom_secure_password}@database:5432/bayscom_erp
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-very-secure-secret-key-here}
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  media_files:
+    driver: local
+  static_files:
+    driver: local
+
+networks:
+  default:
+    name: bayscom_erp_network

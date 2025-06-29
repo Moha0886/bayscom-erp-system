@@ -113,3 +113,24 @@ jspm_packages/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Docker and deployment
+docker-compose.override.yml
+.env
+.env.production
+.env.staging
+
+# SSL certificates
+docker/ssl/
+*.pem
+*.key
+*.crt
+
+# Backup files
+backups/
+*.backup
+*.dump
+
+# Deployment logs
+deploy.log
+*.log

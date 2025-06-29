@@ -1,0 +1,143 @@
+name: BAYSCOM ERP Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    # React Frontend Quality Check
+    - name: Install React dependencies
+      working-directory: ./bayscom-react-frontend
+      run: npm ci
+
+    - name: React TypeScript check
+      working-directory: ./bayscom-react-frontend
+      run: npx tsc --noEmit
+
+    # Next.js Frontend Quality Check
+    - name: Install Next.js dependencies
+      working-directory: ./bayscom-oil-gas
+      run: npm ci
+
+    - name: Next.js TypeScript check
+      working-directory: ./bayscom-oil-gas
+      run: npx tsc --noEmit
+
+    # Django Backend Quality Check
+    - name: Install Python dependencies
+      working-directory: ./bayscom-django-erp
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black isort
+
+    - name: Python code formatting check (Black)
+      working-directory: ./bayscom-django-erp
+      run: black --check .
+      continue-on-error: true
+
+    - name: Python import sorting check (isort)
+      working-directory: ./bayscom-django-erp
+      run: isort --check-only .
+      continue-on-error: true
+
+    - name: Python linting (Flake8)
+      working-directory: ./bayscom-django-erp
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      continue-on-error: true
+
+    # File structure validation
+    - name: Validate project structure
+      run: |
+        echo "📁 Validating BAYSCOM ERP project structure..."
+        
+        # Check required directories
+        required_dirs=(
+          "bayscom-react-frontend/src"
+          "bayscom-oil-gas/app"
+          "bayscom-django-erp/bayscom_erp"
+          ".github/workflows"
+        )
+        
+        for dir in "${required_dirs[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "✅ $dir exists"
+          else
+            echo "❌ $dir is missing"
+            exit 1
+          fi
+        done
+        
+        # Check required files
+        required_files=(
+          "README.md"
+          ".gitignore"
+          "bayscom-react-frontend/package.json"
+          "bayscom-oil-gas/package.json"
+          "bayscom-django-erp/requirements.txt"
+          "bayscom-django-erp/manage.py"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file is missing"
+            exit 1
+          fi
+        done
+        
+        echo "🎉 Project structure validation passed!"
+
+    # Check for sensitive data
+    - name: Scan for sensitive data
+      run: |
+        echo "🔍 Scanning for sensitive data..."
+        
+        # Check for potential secrets (basic scan)
+        if grep -r -i "password\|secret\|key\|token" --include="*.py" --include="*.js" --include="*.ts" --include="*.tsx" . | grep -v "node_modules" | grep -v ".git" | grep -v "# "; then
+          echo "⚠️ Potential sensitive data found. Please review."
+        else
+          echo "✅ No obvious sensitive data found"
+        fi
+
+    # Generate project stats
+    - name: Generate project statistics
+      run: |
+        echo "📊 BAYSCOM ERP Project Statistics"
+        echo "================================="
+        
+        echo "📁 Directory structure:"
+        tree -L 3 -I 'node_modules|.git|build|dist|__pycache__' || find . -type d -not -path './node_modules*' -not -path './.git*' -not -path './build*' -not -path './dist*' | head -20
+        
+        echo ""
+        echo "📄 File counts:"
+        echo "TypeScript/JavaScript files: $(find . -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | wc -l)"
+        echo "Python files: $(find . -name "*.py" | wc -l)"
+        echo "Total files: $(find . -type f | wc -l)"
+        
+        echo ""
+        echo "📏 Code metrics:"
+        echo "Total lines of code: $(find . -name "*.py" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | xargs wc -l | tail -1)"
