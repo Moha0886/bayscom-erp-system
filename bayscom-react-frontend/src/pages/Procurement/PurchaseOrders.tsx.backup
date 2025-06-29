@@ -1,0 +1,1694 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Stack,
+  Card,
+  CardContent,
+  Divider,
+  Alert,
+  Autocomplete,
+} from '@mui/material';
+import {
+  Add,
+  Edit,
+  Visibility,
+  Download,
+  FilterList,
+  Delete,
+  LocalShipping,
+  Receipt,
+  Business,
+  DateRange,
+} from '@mui/icons-material';
+
+interface PurchaseOrderItem {
+  id: string;
+  itemName: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  unit: string;
+  totalPrice: number;
+  category: string;
+}
+
+interface DeliveryDetails {
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  contactPerson: string;
+  contactPhone: string;
+  deliveryDate: string;
+  deliveryMethod: 'pickup' | 'delivery' | 'shipping';
+  specialInstructions: string;
+}
+
+interface TermsConditions {
+  paymentTerms: string;
+  deliveryTerms: string;
+  warrantyPeriod: string;
+  penaltyClause: string;
+  returnPolicy: string;
+  additionalTerms: string;
+}
+
+interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  supplier: string;
+  supplierEmail: string;
+  supplierPhone: string;
+  date: string;
+  expectedDelivery: string;
+  status: 'draft' | 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+  items: PurchaseOrderItem[];
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  deliveryDetails: DeliveryDetails;
+  termsConditions: TermsConditions;
+  notes: string;
+  approvedBy?: string;
+  approvedDate?: string;
+}
+
+// Mock data for suppliers
+const mockSuppliers = [
+  { name: 'Energy Solutions Ltd', email: 'contact@energysolutions.com', phone: '+234-801-234-5678' },
+  { name: 'Industrial Equipment Co', email: 'sales@industrialequip.com', phone: '+234-802-345-6789' },
+  { name: 'Oil Field Services', email: 'info@oilfieldservices.com', phone: '+234-803-456-7890' },
+  { name: 'Safety Equipment Inc', email: 'orders@safetyequip.com', phone: '+234-804-567-8901' },
+  { name: 'Marine Logistics', email: 'logistics@marine.com', phone: '+234-805-678-9012' },
+];
+
+// Mock items from our item management system
+const mockItems = [
+  { name: 'AGO (Automotive Gas Oil)', unit: 'Liters', category: 'Petroleum Products', unitPrice: 850 },
+  { name: 'PMS (Premium Motor Spirit)', unit: 'Liters', category: 'Petroleum Products', unitPrice: 750 },
+  { name: 'LPG Gas Cylinder', unit: 'Units', category: 'Petroleum Products', unitPrice: 15000 },
+  { name: 'Laptop - Dell Latitude 7420', unit: 'Units', category: 'IT Equipment', unitPrice: 1250000 },
+  { name: 'Printer Toner - HP LaserJet', unit: 'Units', category: 'Office Supplies', unitPrice: 25000 },
+  { name: 'Safety Helmet', unit: 'Units', category: 'Safety Equipment', unitPrice: 8500 },
+  { name: 'Industrial Generator', unit: 'Units', category: 'Industrial Equipment', unitPrice: 2500000 },
+];
+
+// Mock tax configurations (in a real app, this would come from the system configuration)
+const mockTaxConfigurations = [
+  { id: 'tax-001', name: 'VAT', percentage: 7.5, isDefault: true, isActive: true },
+  { id: 'tax-002', name: 'WHT', percentage: 5.0, isDefault: false, isActive: true },
+  { id: 'tax-003', name: 'Import Duty', percentage: 10.0, isDefault: false, isActive: true },
+];
+
+// Helper function to get default tax rate
+const getDefaultTaxRate = () => {
+  const defaultTax = mockTaxConfigurations.find(tax => tax.isDefault && tax.isActive);
+  return defaultTax ? defaultTax.percentage / 100 : 0.075; // Default to 7.5% VAT
+};
+
+const mockPurchaseOrders: PurchaseOrder[] = [
+  {
+    id: '1',
+    poNumber: 'PO-2024-001',
+    supplier: 'Energy Solutions Ltd',
+    supplierEmail: 'contact@energysolutions.com',
+    supplierPhone: '+234-801-234-5678',
+    date: '2024-06-25',
+    expectedDelivery: '2024-07-05',
+    status: 'approved',
+    subtotal: 425000,
+    tax: 31875, // 7.5% VAT
+    discount: 0,
+    total: 456875,
+    notes: 'Urgent delivery required for operations',
+    items: [
+      {
+        id: '1',
+        itemName: 'AGO (Automotive Gas Oil)',
+        description: 'Diesel fuel for vehicles and generators',
+        quantity: 500,
+        unitPrice: 850,
+        unit: 'Liters',
+        totalPrice: 425000,
+        category: 'Petroleum Products'
+      }
+    ],
+    deliveryDetails: {
+      address: 'BAYSCOM Energy Limited, Plot 123 Industrial Area',
+      city: 'Port Harcourt',
+      state: 'Rivers State',
+      postalCode: '500001',
+      contactPerson: 'John Okoro',
+      contactPhone: '+234-806-123-4567',
+      deliveryDate: '2024-07-05',
+      deliveryMethod: 'delivery',
+      specialInstructions: 'Deliver to main storage facility'
+    },
+    termsConditions: {
+      paymentTerms: 'Net 30 days',
+      deliveryTerms: 'FOB Destination',
+      warrantyPeriod: 'N/A for consumables',
+      penaltyClause: '1% penalty per day for late delivery',
+      returnPolicy: 'No returns for petroleum products',
+      additionalTerms: 'Quality certificate required upon delivery'
+    }
+  },
+  {
+    id: '2',
+    poNumber: 'PO-2024-002',
+    supplier: 'Industrial Equipment Co',
+    supplierEmail: 'sales@industrialequip.com',
+    supplierPhone: '+234-802-345-6789',
+    date: '2024-06-24',
+    expectedDelivery: '2024-07-15',
+    status: 'pending',
+    subtotal: 2500000,
+    tax: 187500, // 7.5% VAT
+    discount: 50000,
+    total: 2637500,
+    notes: 'Installation and training required',
+    items: [
+      {
+        id: '1',
+        itemName: 'Industrial Generator',
+        description: '250KVA Diesel Generator with automatic control',
+        quantity: 1,
+        unitPrice: 2500000,
+        unit: 'Units',
+        totalPrice: 2500000,
+        category: 'Industrial Equipment'
+      }
+    ],
+    deliveryDetails: {
+      address: 'BAYSCOM Energy Limited, Generator House',
+      city: 'Lagos',
+      state: 'Lagos State',
+      postalCode: '100001',
+      contactPerson: 'Engineer Adebayo',
+      contactPhone: '+234-807-234-5678',
+      deliveryDate: '2024-07-15',
+      deliveryMethod: 'shipping',
+      specialInstructions: 'Crane required for installation'
+    },
+    termsConditions: {
+      paymentTerms: '50% advance, 50% on delivery',
+      deliveryTerms: 'CIF Lagos',
+      warrantyPeriod: '24 months',
+      penaltyClause: '2% penalty per week for late delivery',
+      returnPolicy: '30 days return policy for defects',
+      additionalTerms: 'Installation and commissioning included'
+    }
+  }
+];
+
+const statusColors = {
+  draft: 'default' as const,
+  pending: 'warning' as const,
+  approved: 'info' as const,
+  rejected: 'error' as const,
+  completed: 'success' as const,
+  cancelled: 'error' as const,
+};
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`po-tabpanel-${index}`}
+      aria-labelledby={`po-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
+export default function PurchaseOrders() {
+  const [orders, setOrders] = useState<PurchaseOrder[]>(mockPurchaseOrders);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [tabValue, setTabValue] = useState(0);
+  const [viewMode, setViewMode] = useState<'create' | 'edit' | 'view'>('create');
+
+  // Form state
+  const [poForm, setPOForm] = useState<Partial<PurchaseOrder>>({
+    poNumber: '',
+    supplier: '',
+    supplierEmail: '',
+    supplierPhone: '',
+    date: new Date().toISOString().split('T')[0],
+    expectedDelivery: '',
+    status: 'draft',
+    items: [],
+    subtotal: 0,
+    tax: 0,
+    discount: 0,
+    total: 0,
+    notes: '',
+    deliveryDetails: {
+      address: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      contactPerson: '',
+      contactPhone: '',
+      deliveryDate: '',
+      deliveryMethod: 'delivery',
+      specialInstructions: ''
+    },
+    termsConditions: {
+      paymentTerms: 'Net 30 days',
+      deliveryTerms: 'FOB Destination',
+      warrantyPeriod: '',
+      penaltyClause: '',
+      returnPolicy: '',
+      additionalTerms: ''
+    }
+  });
+
+  const handleCreateOrder = () => {
+    setSelectedOrder(null);
+    setViewMode('create');
+    setPOForm({
+      poNumber: `PO-2024-${String(orders.length + 1).padStart(3, '0')}`,
+      supplier: '',
+      supplierEmail: '',
+      supplierPhone: '',
+      date: new Date().toISOString().split('T')[0],
+      expectedDelivery: '',
+      status: 'draft',
+      items: [],
+      subtotal: 0,
+      tax: 0,
+      discount: 0,
+      total: 0,
+      notes: '',
+      deliveryDetails: {
+        address: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        contactPerson: '',
+        contactPhone: '',
+        deliveryDate: '',
+        deliveryMethod: 'delivery',
+        specialInstructions: ''
+      },
+      termsConditions: {
+        paymentTerms: 'Net 30 days',
+        deliveryTerms: 'FOB Destination',
+        warrantyPeriod: '',
+        penaltyClause: '',
+        returnPolicy: '',
+        additionalTerms: ''
+      }
+    });
+    setTabValue(0);
+    setOpenDialog(true);
+  };
+
+  const handleEditOrder = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    setViewMode('edit');
+    setPOForm(order);
+    setTabValue(0);
+    setOpenDialog(true);
+  };
+
+  const handleViewOrder = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    setViewMode('view');
+    setPOForm(order);
+    setTabValue(0);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedOrder(null);
+    setTabValue(0);
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  const handleSupplierChange = (supplier: string) => {
+    const supplierData = mockSuppliers.find(s => s.name === supplier);
+    setPOForm(prev => ({
+      ...prev,
+      supplier,
+      supplierEmail: supplierData?.email || '',
+      supplierPhone: supplierData?.phone || ''
+    }));
+  };
+
+  const handleAddItem = () => {
+    const newItem: PurchaseOrderItem = {
+      id: String(Date.now()),
+      itemName: '',
+      description: '',
+      quantity: 1,
+      unitPrice: 0,
+      unit: 'Units',
+      totalPrice: 0,
+      category: ''
+    };
+    setPOForm(prev => ({
+      ...prev,
+      items: [...(prev.items || []), newItem]
+    }));
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setPOForm(prev => ({
+      ...prev,
+      items: prev.items?.filter(item => item.id !== itemId) || []
+    }));
+    calculateTotals();
+  };
+
+  const handleItemChange = (itemId: string, field: keyof PurchaseOrderItem, value: any) => {
+    setPOForm(prev => ({
+      ...prev,
+      items: prev.items?.map(item => {
+        if (item.id === itemId) {
+          const updatedItem = { ...item, [field]: value };
+          if (field === 'quantity' || field === 'unitPrice') {
+            updatedItem.totalPrice = updatedItem.quantity * updatedItem.unitPrice;
+          }
+          return updatedItem;
+        }
+        return item;
+      }) || []
+    }));
+    setTimeout(calculateTotals, 100); // Delay to ensure state update
+  };
+
+  const handleItemSelect = (itemId: string, selectedItem: string) => {
+    const item = mockItems.find(i => i.name === selectedItem);
+    if (item) {
+      handleItemChange(itemId, 'itemName', item.name);
+      handleItemChange(itemId, 'unitPrice', item.unitPrice);
+      handleItemChange(itemId, 'unit', item.unit);
+      handleItemChange(itemId, 'category', item.category);
+    }
+  };
+
+  const calculateTotals = () => {
+    const subtotal = poForm.items?.reduce((sum, item) => sum + item.totalPrice, 0) || 0;
+    const taxRate = getDefaultTaxRate();
+    const tax = subtotal * taxRate;
+    const total = subtotal + tax - (poForm.discount || 0);
+    
+    setPOForm(prev => ({
+      ...prev,
+      subtotal,
+      tax,
+      total
+    }));
+  };
+
+  const handleSavePO = () => {
+    if (viewMode === 'create') {
+      const newPO: PurchaseOrder = {
+        ...poForm as PurchaseOrder,
+        id: String(orders.length + 1)
+      };
+      setOrders(prev => [...prev, newPO]);
+    } else if (viewMode === 'edit' && selectedOrder) {
+      setOrders(prev => prev.map(order => 
+        order.id === selectedOrder.id ? { ...poForm as PurchaseOrder, id: selectedOrder.id } : order
+      ));
+    }
+    handleCloseDialog();
+  };
+
+  const handleDownloadPO = () => {
+    // Generate PDF content
+    const generatePDFContent = () => {
+      const po = poForm;
+      const content = `
+PURCHASE ORDER
+
+PO Number: ${po.poNumber}
+Date: ${po.date ? new Date(po.date).toLocaleDateString() : 'N/A'}
+Status: ${po.status?.toUpperCase()}
+
+SUPPLIER INFORMATION:
+Name: ${po.supplier}
+Email: ${po.supplierEmail}
+Phone: ${po.supplierPhone}
+
+DELIVERY DETAILS:
+Address: ${po.deliveryDetails?.address}
+City: ${po.deliveryDetails?.city}, ${po.deliveryDetails?.state} ${po.deliveryDetails?.postalCode}
+Contact: ${po.deliveryDetails?.contactPerson} (${po.deliveryDetails?.contactPhone})
+Delivery Date: ${po.deliveryDetails?.deliveryDate ? new Date(po.deliveryDetails.deliveryDate).toLocaleDateString() : 'N/A'}
+Method: ${po.deliveryDetails?.deliveryMethod}
+
+ITEMS:
+${po.items?.map((item, index) => `
+${index + 1}. ${item.itemName}
+   Description: ${item.description}
+   Quantity: ${item.quantity} ${item.unit}
+   Unit Price: ₦${item.unitPrice.toLocaleString()}
+   Total: ₦${item.totalPrice.toLocaleString()}
+`).join('') || 'No items'}
+
+FINANCIAL SUMMARY:
+Subtotal: ₦${(po.subtotal || 0).toLocaleString()}
+Tax: ₦${(po.tax || 0).toLocaleString()}
+Discount: ₦${(po.discount || 0).toLocaleString()}
+Total: ₦${(po.total || 0).toLocaleString()}
+
+TERMS & CONDITIONS:
+Payment Terms: ${po.termsConditions?.paymentTerms}
+Delivery Terms: ${po.termsConditions?.deliveryTerms}
+Warranty: ${po.termsConditions?.warrantyPeriod}
+
+NOTES:
+${po.notes}
+
+Generated on: ${new Date().toLocaleString()}
+      `;
+      return content;
+    };
+
+    // Create and download the file
+    const content = generatePDFContent();
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `PO_${poForm.poNumber || 'New'}_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    // Show success message
+    alert('Purchase Order downloaded successfully!');
+  };
+
+  const filteredOrders = filterStatus === 'all' 
+    ? orders 
+    : orders.filter(order => order.status === filterStatus);
+
+  const getDialogTitle = () => {
+    switch (viewMode) {
+      case 'create': return 'Create New Purchase Order';
+      case 'edit': return `Edit Purchase Order - ${poForm.poNumber}`;
+      case 'view': return `View Purchase Order - ${poForm.poNumber}`;
+      default: return 'Purchase Order';
+    }
+  };
+
+  return (
+    <Box sx={{ flexGrow: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+          Purchase Orders
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={handleCreateOrder}
+          size="large"
+        >
+          Create Purchase Order
+        </Button>
+      </Box>
+
+      {/* Summary Cards */}
+      <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
+        <Card sx={{ flex: '1 1 200px', minWidth: 200 }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom>
+              Total Orders
+            </Typography>
+            <Typography variant="h4">
+              {orders.length}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: '1 1 200px', minWidth: 200 }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom>
+              Pending Approval
+            </Typography>
+            <Typography variant="h4">
+              {orders.filter(o => o.status === 'pending').length}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: '1 1 200px', minWidth: 200 }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom>
+              Approved Orders
+            </Typography>
+            <Typography variant="h4">
+              {orders.filter(o => o.status === 'approved').length}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: '1 1 200px', minWidth: 200 }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom>
+              Total Value
+            </Typography>
+            <Typography variant="h4">
+              ₦{orders.reduce((sum, o) => sum + o.total, 0).toLocaleString()}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* Filters */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <TextField
+          select
+          label="Filter by Status"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          size="small"
+          sx={{ minWidth: 150 }}
+        >
+          <MenuItem value="all">All Statuses</MenuItem>
+          <MenuItem value="draft">Draft</MenuItem>
+          <MenuItem value="pending">Pending</MenuItem>
+          <MenuItem value="approved">Approved</MenuItem>
+          <MenuItem value="completed">Completed</MenuItem>
+          <MenuItem value="rejected">Rejected</MenuItem>
+          <MenuItem value="cancelled">Cancelled</MenuItem>
+        </TextField>
+        <Button variant="outlined" startIcon={<FilterList />}>
+          More Filters
+        </Button>
+      </Stack>
+
+      {/* Purchase Orders Table */}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>PO Number</TableCell>
+              <TableCell>Supplier</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Items</TableCell>
+              <TableCell>Expected Delivery</TableCell>
+              <TableCell>Total Amount</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredOrders.map((order) => (
+              <TableRow key={order.id} hover>
+                <TableCell sx={{ fontWeight: 'medium' }}>{order.poNumber}</TableCell>
+                <TableCell>{order.supplier}</TableCell>
+                <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                <TableCell>{order.items.length} items</TableCell>
+                <TableCell>{new Date(order.expectedDelivery).toLocaleDateString()}</TableCell>
+                <TableCell>₦{order.total.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={order.status.toUpperCase()}
+                    color={statusColors[order.status]}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  <IconButton size="small" onClick={() => handleViewOrder(order)}>
+                    <Visibility />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => handleEditOrder(order)}>
+                    <Edit />
+                  </IconButton>
+                  <IconButton size="small">
+                    <Download />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Comprehensive Create/Edit/View Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="xl" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {getDialogTitle()}
+              <Chip 
+                label={poForm.status?.toUpperCase()} 
+                color={statusColors[poForm.status as keyof typeof statusColors]} 
+                size="small" 
+              />
+            </Box>
+            {viewMode === 'view' && (
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Download />}
+                  onClick={() => handleDownloadPO()}
+                  size="small"
+                >
+                  Download PDF
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<Edit />}
+                  onClick={() => setViewMode('edit')}
+                  size="small"
+                >
+                  Edit PO
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          {/* Single Page Layout - All Information */}
+          <Stack spacing={4}>
+            
+            {/* Header Information */}
+            <Paper sx={{ p: 3, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+              <Typography variant="h5" gutterBottom>
+                Purchase Order #{poForm.poNumber || 'New PO'}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap', mt: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2">Date Created</Typography>
+                  <Typography variant="body1">{poForm.date ? new Date(poForm.date).toLocaleDateString() : 'N/A'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2">Expected Delivery</Typography>
+                  <Typography variant="body1">{poForm.expectedDelivery ? new Date(poForm.expectedDelivery).toLocaleDateString() : 'N/A'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2">Total Amount</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    ₦{(poForm.total || 0).toLocaleString()}
+                  </Typography>
+                </Box>
+                {poForm.approvedBy && (
+                  <Box>
+                    <Typography variant="subtitle2">Approved By</Typography>
+                    <Typography variant="body1">{poForm.approvedBy}</Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+
+            {/* General Information */}
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Business /> General Information
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                <TextField
+                  sx={{ flex: '1 1 250px' }}
+                  label="PO Number"
+                  value={poForm.poNumber || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, poNumber: e.target.value }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                  required
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Date"
+                  type="date"
+                  value={poForm.date || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, date: e.target.value }))}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={viewMode === 'view'}
+                  required
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Expected Delivery"
+                  type="date"
+                  value={poForm.expectedDelivery || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+
+              {/* Supplier Information */}
+              <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+                Supplier Information
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Autocomplete
+                  sx={{ flex: '1 1 300px' }}
+                  options={mockSuppliers.map(s => s.name)}
+                  value={poForm.supplier || ''}
+                  onChange={(event, newValue) => handleSupplierChange(newValue || '')}
+                  disabled={viewMode === 'view'}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Supplier"
+                      required
+                    />
+                  )}
+                />
+                <TextField
+                  sx={{ flex: '1 1 250px' }}
+                  label="Supplier Email"
+                  value={poForm.supplierEmail || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, supplierEmail: e.target.value }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Supplier Phone"
+                  value={poForm.supplierPhone || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, supplierPhone: e.target.value }))}
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+            </Paper>
+
+            {/* Items Section */}
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Receipt /> Purchase Order Items
+                </Typography>
+                {viewMode !== 'view' && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Add />}
+                    onClick={handleAddItem}
+                    size="small"
+                  >
+                    Add Item
+                  </Button>
+                )}
+              </Box>
+              <Divider sx={{ mb: 3 }} />
+
+              {poForm.items && poForm.items.length > 0 ? (
+                <Box>
+                  {poForm.items.map((item, index) => (
+                    <Paper key={item.id} sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          Item #{index + 1}
+                        </Typography>
+                        {viewMode !== 'view' && (
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleRemoveItem(item.id)}
+                          >
+                            <Delete />
+                          </IconButton>
+                        )}
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                        <Autocomplete
+                          sx={{ flex: '1 1 250px' }}
+                          options={mockItems.map(item => item.name)}
+                          value={item.itemName}
+                          onChange={(event, newValue) => handleItemChange(item.id, 'itemName', newValue || '')}
+                          disabled={viewMode === 'view'}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Item Name"
+                              required
+                            />
+                          )}
+                        />
+                        <TextField
+                          sx={{ flex: '1 1 200px' }}
+                          label="Category"
+                          value={item.category}
+                          onChange={(e) => handleItemChange(item.id, 'category', e.target.value)}
+                          disabled={viewMode === 'view'}
+                        />
+                      </Box>
+                      
+                      <TextField
+                        fullWidth
+                        label="Description"
+                        value={item.description}
+                        onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                        multiline
+                        rows={2}
+                        disabled={viewMode === 'view'}
+                        sx={{ mb: 2 }}
+                      />
+                      
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <TextField
+                          sx={{ flex: '1 1 100px' }}
+                          label="Quantity"
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                          disabled={viewMode === 'view'}
+                        />
+                        <TextField
+                          sx={{ flex: '1 1 100px' }}
+                          label="Unit"
+                          value={item.unit}
+                          onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
+                          disabled={viewMode === 'view'}
+                        />
+                        <TextField
+                          sx={{ flex: '1 1 150px' }}
+                          label="Unit Price (₦)"
+                          type="number"
+                          value={item.unitPrice}
+                          onChange={(e) => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          disabled={viewMode === 'view'}
+                        />
+                        <TextField
+                          sx={{ flex: '1 1 150px' }}
+                          label="Total Price (₦)"
+                          value={item.totalPrice.toLocaleString()}
+                          InputProps={{ readOnly: true }}
+                          variant="filled"
+                        />
+                      </Box>
+                    </Paper>
+                  ))}
+                  
+                  {/* Items Summary */}
+                  <Paper sx={{ p: 2, bgcolor: 'info.light', color: 'info.contrastText' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+                      <Box>
+                        <Typography variant="subtitle2">Total Items: {poForm.items.length}</Typography>
+                        <Typography variant="body2">
+                          Total Quantity: {poForm.items.reduce((sum, item) => sum + item.quantity, 0)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="subtitle2">Subtotal: ₦{(poForm.subtotal || 0).toLocaleString()}</Typography>
+                        <Typography variant="subtitle2">Tax: ₦{(poForm.tax || 0).toLocaleString()}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                          Total: ₦{(poForm.total || 0).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Paper>
+                </Box>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Receipt sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    No Items Added
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Add items to create your purchase order
+                  </Typography>
+                  {viewMode !== 'view' && (
+                    <Button
+                      variant="contained"
+                      startIcon={<Add />}
+                      onClick={handleAddItem}
+                    >
+                      Add First Item
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </Paper>
+
+            {/* Delivery Details */}
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocalShipping /> Delivery Details
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                <TextField
+                  sx={{ flex: '1 1 300px' }}
+                  label="Delivery Address"
+                  value={poForm.deliveryDetails?.address || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, address: e.target.value }
+                  }))}
+                  multiline
+                  rows={2}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="City"
+                  value={poForm.deliveryDetails?.city || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, city: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 150px' }}
+                  label="State"
+                  value={poForm.deliveryDetails?.state || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, state: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 150px' }}
+                  label="Postal Code"
+                  value={poForm.deliveryDetails?.postalCode || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, postalCode: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Contact Person"
+                  value={poForm.deliveryDetails?.contactPerson || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, contactPerson: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Contact Phone"
+                  value={poForm.deliveryDetails?.contactPhone || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, contactPhone: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Delivery Date"
+                  type="date"
+                  value={poForm.deliveryDetails?.deliveryDate || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, deliveryDate: e.target.value }
+                  }))}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  select
+                  label="Delivery Method"
+                  value={poForm.deliveryDetails?.deliveryMethod || 'delivery'}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, deliveryMethod: e.target.value as any }
+                  }))}
+                  disabled={viewMode === 'view'}
+                >
+                  <MenuItem value="pickup">Pickup</MenuItem>
+                  <MenuItem value="delivery">Delivery</MenuItem>
+                  <MenuItem value="shipping">Shipping</MenuItem>
+                </TextField>
+              </Box>
+              
+              <TextField
+                fullWidth
+                label="Special Instructions"
+                value={poForm.deliveryDetails?.specialInstructions || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  deliveryDetails: { ...prev.deliveryDetails!, specialInstructions: e.target.value }
+                }))}
+                multiline
+                rows={2}
+                disabled={viewMode === 'view'}
+              />
+            </Paper>
+
+            {/* Terms & Conditions */}
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <DateRange /> Terms & Conditions
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Payment Terms"
+                  value={poForm.termsConditions?.paymentTerms || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, paymentTerms: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Delivery Terms"
+                  value={poForm.termsConditions?.deliveryTerms || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, deliveryTerms: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Warranty Period"
+                  value={poForm.termsConditions?.warrantyPeriod || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, warrantyPeriod: e.target.value }
+                  }))}
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                <TextField
+                  sx={{ flex: '1 1 300px' }}
+                  label="Penalty Clause"
+                  value={poForm.termsConditions?.penaltyClause || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, penaltyClause: e.target.value }
+                  }))}
+                  multiline
+                  rows={2}
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 300px' }}
+                  label="Return Policy"
+                  value={poForm.termsConditions?.returnPolicy || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, returnPolicy: e.target.value }
+                  }))}
+                  multiline
+                  rows={2}
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <TextField
+                fullWidth
+                label="Additional Terms"
+                value={poForm.termsConditions?.additionalTerms || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  termsConditions: { ...prev.termsConditions!, additionalTerms: e.target.value }
+                }))}
+                multiline
+                rows={3}
+                disabled={viewMode === 'view'}
+              />
+            </Paper>
+
+            {/* Notes */}
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Additional Notes
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              <TextField
+                fullWidth
+                label="Notes"
+                value={poForm.notes || ''}
+                onChange={(e) => setPOForm(prev => ({ ...prev, notes: e.target.value }))}
+                multiline
+                rows={3}
+                disabled={viewMode === 'view'}
+                placeholder="Add any additional notes or comments..."
+              />
+            </Paper>
+
+          </Stack>
+        </DialogContent>
+          {/* Tab 1: General Information */}
+          <TabPanel value={tabValue} index={0}>
+            <Stack spacing={3}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  sx={{ flex: '1 1 250px' }}
+                  label="PO Number"
+                  value={poForm.poNumber || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, poNumber: e.target.value }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                  required
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Date"
+                  type="date"
+                  value={poForm.date || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, date: e.target.value }))}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={viewMode === 'view'}
+                  required
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Expected Delivery"
+                  type="date"
+                  value={poForm.expectedDelivery || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <Autocomplete
+                options={mockSuppliers.map(s => s.name)}
+                value={poForm.supplier || ''}
+                onChange={(_, value) => handleSupplierChange(value || '')}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Supplier"
+                    variant="outlined"
+                    required
+                    disabled={viewMode === 'view'}
+                  />
+                )}
+              />
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  sx={{ flex: '1 1 300px' }}
+                  label="Supplier Email"
+                  value={poForm.supplierEmail || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, supplierEmail: e.target.value }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Supplier Phone"
+                  value={poForm.supplierPhone || ''}
+                  onChange={(e) => setPOForm(prev => ({ ...prev, supplierPhone: e.target.value }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <TextField
+                select
+                label="Status"
+                value={poForm.status || 'draft'}
+                onChange={(e) => setPOForm(prev => ({ ...prev, status: e.target.value as any }))}
+                variant="outlined"
+                disabled={viewMode === 'view'}
+                fullWidth
+              >
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="pending">Pending Approval</MenuItem>
+                <MenuItem value="approved">Approved</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="cancelled">Cancelled</MenuItem>
+              </TextField>
+              
+              <TextField
+                label="Notes"
+                value={poForm.notes || ''}
+                onChange={(e) => setPOForm(prev => ({ ...prev, notes: e.target.value }))}
+                multiline
+                rows={3}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                placeholder="Enter any additional notes or instructions..."
+              />
+            </Stack>
+          </TabPanel>
+
+          {/* Tab 2: Items */}
+          <TabPanel value={tabValue} index={1}>
+            <Stack spacing={3}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6">Purchase Order Items</Typography>
+                {viewMode !== 'view' && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Add />}
+                    onClick={handleAddItem}
+                  >
+                    Add Item
+                  </Button>
+                )}
+              </Box>
+              
+              {poForm.items && poForm.items.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Item Name</TableCell>
+                        <TableCell>Description</TableCell>
+                        <TableCell>Quantity</TableCell>
+                        <TableCell>Unit</TableCell>
+                        <TableCell>Unit Price (₦)</TableCell>
+                        <TableCell>Total (₦)</TableCell>
+                        {viewMode !== 'view' && <TableCell>Actions</TableCell>}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {poForm.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            {viewMode === 'view' ? (
+                              item.itemName
+                            ) : (
+                              <Autocomplete
+                                size="small"
+                                options={mockItems.map(i => i.name)}
+                                value={item.itemName}
+                                onChange={(_, value) => handleItemSelect(item.id, value || '')}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ minWidth: 200 }}
+                                  />
+                                )}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {viewMode === 'view' ? (
+                              item.description
+                            ) : (
+                              <TextField
+                                size="small"
+                                value={item.description}
+                                onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                                variant="outlined"
+                                sx={{ minWidth: 150 }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {viewMode === 'view' ? (
+                              item.quantity
+                            ) : (
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                                variant="outlined"
+                                sx={{ width: 80 }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>
+                            {viewMode === 'view' ? (
+                              item.unitPrice.toLocaleString()
+                            ) : (
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={item.unitPrice}
+                                onChange={(e) => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                variant="outlined"
+                                sx={{ width: 120 }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>{item.totalPrice.toLocaleString()}</TableCell>
+                          {viewMode !== 'view' && (
+                            <TableCell>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleRemoveItem(item.id)}
+                                color="error"
+                              >
+                                <Delete />
+                              </IconButton>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Alert severity="info">
+                  No items added yet. Click "Add Item" to start building your purchase order.
+                </Alert>
+              )}
+              
+              {/* Totals Summary */}
+              <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                <Stack spacing={2}>
+                  <Typography variant="h6" gutterBottom>Order Summary</Typography>
+                  
+                  {/* Tax Selection */}
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <TextField
+                      select
+                      label="Tax Type"
+                      value={mockTaxConfigurations.find(t => t.isDefault)?.name || 'VAT'}
+                      sx={{ minWidth: 150 }}
+                      size="small"
+                      disabled={viewMode === 'view'}
+                    >
+                      {mockTaxConfigurations.filter(tax => tax.isActive).map((tax) => (
+                        <MenuItem key={tax.id} value={tax.name}>
+                          {tax.name} ({tax.percentage}%)
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <TextField
+                      label="Discount (₦)"
+                      type="number"
+                      value={poForm.discount || 0}
+                      onChange={(e) => {
+                        setPOForm(prev => ({ ...prev, discount: parseFloat(e.target.value) || 0 }));
+                        setTimeout(calculateTotals, 100);
+                      }}
+                      sx={{ minWidth: 150 }}
+                      size="small"
+                      disabled={viewMode === 'view'}
+                    />
+                  </Box>
+                  
+                  <Divider />
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography>Subtotal:</Typography>
+                    <Typography>₦{(poForm.subtotal || 0).toLocaleString()}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography>Tax ({((getDefaultTaxRate() * 100).toFixed(1))}%):</Typography>
+                    <Typography>₦{(poForm.tax || 0).toLocaleString()}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography>Discount:</Typography>
+                    <Typography>-₦{(poForm.discount || 0).toLocaleString()}</Typography>
+                  </Box>
+                  <Divider />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="h6">Total:</Typography>
+                    <Typography variant="h6">₦{(poForm.total || 0).toLocaleString()}</Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Stack>
+          </TabPanel>
+
+          {/* Tab 3: Delivery Details */}
+          <TabPanel value={tabValue} index={2}>
+            <Stack spacing={3}>
+              <Typography variant="h6">Delivery Information</Typography>
+              
+              <TextField
+                label="Delivery Address"
+                value={poForm.deliveryDetails?.address || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  deliveryDetails: { ...prev.deliveryDetails!, address: e.target.value }
+                }))}
+                multiline
+                rows={2}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                required
+              />
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="City"
+                  value={poForm.deliveryDetails?.city || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, city: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="State"
+                  value={poForm.deliveryDetails?.state || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, state: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 150px' }}
+                  label="Postal Code"
+                  value={poForm.deliveryDetails?.postalCode || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, postalCode: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  sx={{ flex: '1 1 250px' }}
+                  label="Contact Person"
+                  value={poForm.deliveryDetails?.contactPerson || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, contactPerson: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Contact Phone"
+                  value={poForm.deliveryDetails?.contactPhone || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, contactPhone: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  label="Delivery Date"
+                  type="date"
+                  value={poForm.deliveryDetails?.deliveryDate || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, deliveryDate: e.target.value }
+                  }))}
+                  InputLabelProps={{ shrink: true }}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                />
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  select
+                  label="Delivery Method"
+                  value={poForm.deliveryDetails?.deliveryMethod || 'delivery'}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    deliveryDetails: { ...prev.deliveryDetails!, deliveryMethod: e.target.value as any }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                >
+                  <MenuItem value="pickup">Pickup</MenuItem>
+                  <MenuItem value="delivery">Delivery</MenuItem>
+                  <MenuItem value="shipping">Shipping</MenuItem>
+                </TextField>
+              </Box>
+              
+              <TextField
+                label="Special Instructions"
+                value={poForm.deliveryDetails?.specialInstructions || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  deliveryDetails: { ...prev.deliveryDetails!, specialInstructions: e.target.value }
+                }))}
+                multiline
+                rows={3}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                placeholder="Any special delivery instructions or requirements..."
+              />
+            </Stack>
+          </TabPanel>
+
+          {/* Tab 4: Terms & Conditions */}
+          <TabPanel value={tabValue} index={3}>
+            <Stack spacing={3}>
+              <Typography variant="h6">Terms & Conditions</Typography>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  sx={{ flex: '1 1 250px' }}
+                  label="Payment Terms"
+                  value={poForm.termsConditions?.paymentTerms || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, paymentTerms: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                  placeholder="e.g., Net 30 days"
+                />
+                <TextField
+                  sx={{ flex: '1 1 250px' }}
+                  label="Delivery Terms"
+                  value={poForm.termsConditions?.deliveryTerms || ''}
+                  onChange={(e) => setPOForm(prev => ({
+                    ...prev,
+                    termsConditions: { ...prev.termsConditions!, deliveryTerms: e.target.value }
+                  }))}
+                  variant="outlined"
+                  disabled={viewMode === 'view'}
+                  placeholder="e.g., FOB Destination"
+                />
+              </Box>
+              
+              <TextField
+                label="Warranty Period"
+                value={poForm.termsConditions?.warrantyPeriod || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  termsConditions: { ...prev.termsConditions!, warrantyPeriod: e.target.value }
+                }))}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                placeholder="e.g., 12 months from delivery"
+              />
+              
+              <TextField
+                label="Penalty Clause"
+                value={poForm.termsConditions?.penaltyClause || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  termsConditions: { ...prev.termsConditions!, penaltyClause: e.target.value }
+                }))}
+                multiline
+                rows={2}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                placeholder="Penalties for late delivery or non-compliance"
+              />
+              
+              <TextField
+                label="Return Policy"
+                value={poForm.termsConditions?.returnPolicy || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  termsConditions: { ...prev.termsConditions!, returnPolicy: e.target.value }
+                }))}
+                multiline
+                rows={2}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                placeholder="Return and refund policy"
+              />
+              
+              <TextField
+                label="Additional Terms"
+                value={poForm.termsConditions?.additionalTerms || ''}
+                onChange={(e) => setPOForm(prev => ({
+                  ...prev,
+                  termsConditions: { ...prev.termsConditions!, additionalTerms: e.target.value }
+                }))}
+                multiline
+                rows={4}
+                variant="outlined"
+                fullWidth
+                disabled={viewMode === 'view'}
+                placeholder="Any additional terms and conditions..."
+              />
+            </Stack>
+          </TabPanel>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button onClick={handleCloseDialog}>
+            {viewMode === 'view' ? 'Close' : 'Cancel'}
+          </Button>
+          {viewMode !== 'view' && (
+            <>
+              <Button variant="outlined" onClick={() => setPOForm(prev => ({ ...prev, status: 'draft' }))}>
+                Save as Draft
+              </Button>
+              <Button variant="contained" onClick={handleSavePO}>
+                {viewMode === 'create' ? 'Create Purchase Order' : 'Update Purchase Order'}
+              </Button>
+            </>
+          )}
+          {viewMode === 'view' && (
+            <Button variant="contained" startIcon={<Download />}>
+              Download PDF
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
