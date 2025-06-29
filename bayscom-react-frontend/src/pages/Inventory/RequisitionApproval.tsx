@@ -56,8 +56,6 @@ interface RequisitionItem {
   consumableName: string;
   requestedQuantity: number;
   unit: string;
-  unitCost: number;
-  totalCost: number;
   justification: string;
 }
 
@@ -69,7 +67,7 @@ interface StaffRequisition {
   department: string;
   supervisor: string;
   items: RequisitionItem[];
-  totalAmount: number;
+  itemCount: number;
   purpose: string;
   urgency: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'supervisor-review' | 'supervisor-approved' | 'supervisor-rejected' | 'admin-review' | 'admin-approved' | 'admin-rejected' | 'completed';
@@ -95,8 +93,6 @@ const mockPendingRequisitions: StaffRequisition[] = [
         consumableName: 'A4 Copy Paper',
         requestedQuantity: 20,
         unit: 'Ream',
-        unitCost: 2500,
-        totalCost: 50000,
         justification: 'Technical documentation for Q1 projects',
       },
       {
@@ -104,12 +100,10 @@ const mockPendingRequisitions: StaffRequisition[] = [
         consumableName: 'First Aid Kit',
         requestedQuantity: 3,
         unit: 'Kit',
-        unitCost: 12000,
-        totalCost: 36000,
         justification: 'Replacement for engineering workshop',
       },
     ],
-    totalAmount: 86000,
+    itemCount: 2,
     purpose: 'Quarterly office supplies and safety equipment',
     urgency: 'medium',
     status: 'supervisor-review',
@@ -128,8 +122,6 @@ const mockPendingRequisitions: StaffRequisition[] = [
         consumableName: 'Safety Helmets',
         requestedQuantity: 25,
         unit: 'Piece',
-        unitCost: 8500,
-        totalCost: 212500,
         justification: 'New staff onboarding and safety compliance',
       },
       {
@@ -137,12 +129,10 @@ const mockPendingRequisitions: StaffRequisition[] = [
         consumableName: 'Hydraulic Oil',
         requestedQuantity: 100,
         unit: 'Liter',
-        unitCost: 1200,
-        totalCost: 120000,
         justification: 'Monthly maintenance schedule for equipment',
       },
     ],
-    totalAmount: 332500,
+    itemCount: 2,
     purpose: 'Safety equipment and maintenance supplies',
     urgency: 'high',
     status: 'admin-review',
@@ -163,12 +153,10 @@ const mockPendingRequisitions: StaffRequisition[] = [
         consumableName: 'Printer Cartridges',
         requestedQuantity: 10,
         unit: 'Piece',
-        unitCost: 25000,
-        totalCost: 250000,
         justification: 'IT department monthly printing requirements',
       },
     ],
-    totalAmount: 250000,
+    itemCount: 1,
     purpose: 'IT department consumables',
     urgency: 'low',
     status: 'pending',
@@ -359,10 +347,10 @@ const RequisitionApproval: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Total Value (₦)
+                    Total Items
                   </Typography>
                   <Typography variant="h4">
-                    {getPendingForRole().reduce((sum, req) => sum + req.totalAmount, 0).toLocaleString()}
+                    {getPendingForRole().reduce((sum, req) => sum + req.itemCount, 0)}
                   </Typography>
                 </Box>
                 <Assignment sx={{ fontSize: 40, color: '#2196f3' }} />
@@ -424,7 +412,7 @@ const RequisitionApproval: React.FC = () => {
                             size="small"
                           />
                           <Chip
-                            label={`₦${requisition.totalAmount.toLocaleString()}`}
+                            label={`${requisition.itemCount} items`}
                             color="primary"
                             size="small"
                           />
@@ -498,7 +486,7 @@ const RequisitionApproval: React.FC = () => {
                   <TableCell>Req. ID</TableCell>
                   <TableCell>Staff</TableCell>
                   <TableCell>Department</TableCell>
-                  <TableCell>Amount (₦)</TableCell>
+                  <TableCell>Items</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Processed Date</TableCell>
                   <TableCell>Actions</TableCell>
@@ -510,7 +498,7 @@ const RequisitionApproval: React.FC = () => {
                     <TableCell sx={{ fontWeight: 'bold' }}>{requisition.id}</TableCell>
                     <TableCell>{requisition.staffName}</TableCell>
                     <TableCell>{requisition.department}</TableCell>
-                    <TableCell>₦{requisition.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell>{requisition.itemCount} item(s)</TableCell>
                     <TableCell>
                       <Chip
                         label={requisition.status.replace('-', ' ')}
@@ -549,7 +537,7 @@ const RequisitionApproval: React.FC = () => {
                   <TableCell>Date</TableCell>
                   <TableCell>Staff</TableCell>
                   <TableCell>Department</TableCell>
-                  <TableCell>Amount (₦)</TableCell>
+                  <TableCell>Items</TableCell>
                   <TableCell>Urgency</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Actions</TableCell>
@@ -562,7 +550,7 @@ const RequisitionApproval: React.FC = () => {
                     <TableCell>{new Date(requisition.requestDate).toLocaleDateString()}</TableCell>
                     <TableCell>{requisition.staffName}</TableCell>
                     <TableCell>{requisition.department}</TableCell>
-                    <TableCell>₦{requisition.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell>{requisition.itemCount} item(s)</TableCell>
                     <TableCell>
                       <Chip
                         label={requisition.urgency}
@@ -634,7 +622,7 @@ const RequisitionApproval: React.FC = () => {
                 <Box sx={{ flex: '1 1 45%' }}>
                   <Typography variant="subtitle2" color="textSecondary">Request Details</Typography>
                   <Typography variant="body2">Date: {new Date(selectedRequisition.requestDate).toLocaleDateString()}</Typography>
-                  <Typography variant="body2">Amount: ₦{selectedRequisition.totalAmount.toLocaleString()}</Typography>
+                  <Typography variant="body2">Items: {selectedRequisition.itemCount}</Typography>
                   <Chip
                     label={selectedRequisition.urgency}
                     color={urgencyColors[selectedRequisition.urgency]}
@@ -656,8 +644,7 @@ const RequisitionApproval: React.FC = () => {
                     <TableRow>
                       <TableCell>Item</TableCell>
                       <TableCell>Quantity</TableCell>
-                      <TableCell>Unit Cost</TableCell>
-                      <TableCell>Total</TableCell>
+                      <TableCell>Justification</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -665,8 +652,7 @@ const RequisitionApproval: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell>{item.consumableName}</TableCell>
                         <TableCell>{item.requestedQuantity} {item.unit}</TableCell>
-                        <TableCell>₦{item.unitCost.toLocaleString()}</TableCell>
-                        <TableCell>₦{item.totalCost.toLocaleString()}</TableCell>
+                        <TableCell>{item.justification}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

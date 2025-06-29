@@ -51,8 +51,6 @@ interface RequisitionItem {
   consumableName: string;
   requestedQuantity: number;
   unit: string;
-  unitCost: number;
-  totalCost: number;
   justification: string;
 }
 
@@ -64,7 +62,7 @@ interface StaffRequisition {
   department: string;
   supervisor: string;
   items: RequisitionItem[];
-  totalAmount: number;
+  itemCount: number;
   purpose: string;
   urgency: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'supervisor-review' | 'supervisor-approved' | 'supervisor-rejected' | 'admin-review' | 'admin-approved' | 'admin-rejected' | 'completed';
@@ -77,14 +75,14 @@ interface StaffRequisition {
 
 // Mock data for consumables (for selection)
 const availableConsumables = [
-  { id: 'CON001', name: 'A4 Copy Paper', unit: 'Ream', cost: 2500, stock: 45 },
-  { id: 'CON002', name: 'Drill Bits Set', unit: 'Set', cost: 15000, stock: 8 },
-  { id: 'CON003', name: 'Safety Helmets', unit: 'Piece', cost: 8500, stock: 0 },
-  { id: 'CON004', name: 'Hydraulic Oil', unit: 'Liter', cost: 1200, stock: 185 },
-  { id: 'CON005', name: 'Printer Cartridges', unit: 'Piece', cost: 25000, stock: 12 },
-  { id: 'CON006', name: 'Office Chairs', unit: 'Piece', cost: 45000, stock: 6 },
-  { id: 'CON007', name: 'Cleaning Supplies', unit: 'Set', cost: 5000, stock: 20 },
-  { id: 'CON008', name: 'First Aid Kit', unit: 'Kit', cost: 12000, stock: 15 },
+  { id: 'CON001', name: 'A4 Copy Paper', unit: 'Ream', stock: 45 },
+  { id: 'CON002', name: 'Drill Bits Set', unit: 'Set', stock: 8 },
+  { id: 'CON003', name: 'Safety Helmets', unit: 'Piece', stock: 0 },
+  { id: 'CON004', name: 'Hydraulic Oil', unit: 'Liter', stock: 185 },
+  { id: 'CON005', name: 'Printer Cartridges', unit: 'Piece', stock: 12 },
+  { id: 'CON006', name: 'Office Chairs', unit: 'Piece', stock: 6 },
+  { id: 'CON007', name: 'Cleaning Supplies', unit: 'Set', stock: 20 },
+  { id: 'CON008', name: 'First Aid Kit', unit: 'Kit', stock: 15 },
 ];
 
 const departments = [
@@ -114,8 +112,6 @@ const mockRequisitions: StaffRequisition[] = [
         consumableName: 'A4 Copy Paper',
         requestedQuantity: 10,
         unit: 'Ream',
-        unitCost: 2500,
-        totalCost: 25000,
         justification: 'For project documentation and reports',
       },
       {
@@ -123,12 +119,10 @@ const mockRequisitions: StaffRequisition[] = [
         consumableName: 'Printer Cartridges',
         requestedQuantity: 2,
         unit: 'Piece',
-        unitCost: 25000,
-        totalCost: 50000,
         justification: 'Replacement for office printer',
       },
     ],
-    totalAmount: 75000,
+    itemCount: 2,
     purpose: 'Monthly office supplies for engineering department',
     urgency: 'medium',
     status: 'supervisor-approved',
@@ -149,17 +143,15 @@ const mockRequisitions: StaffRequisition[] = [
         consumableName: 'Safety Helmets',
         requestedQuantity: 15,
         unit: 'Piece',
-        unitCost: 8500,
-        totalCost: 127500,
         justification: 'Replacement for damaged helmets, safety compliance',
       },
     ],
-    totalAmount: 127500,
+    itemCount: 1,
     purpose: 'Safety equipment replacement',
     urgency: 'high',
     status: 'admin-review',
     supervisorComments: 'Urgent safety requirement. Highly recommended.',
-    adminComments: 'Under review for budget allocation.',
+    adminComments: 'Under review for availability.',
     supervisorDate: '2024-12-22',
     expectedDelivery: '2024-12-30',
   },
@@ -176,12 +168,10 @@ const mockRequisitions: StaffRequisition[] = [
         consumableName: 'Hydraulic Oil',
         requestedQuantity: 50,
         unit: 'Liter',
-        unitCost: 1200,
-        totalCost: 60000,
         justification: 'Maintenance of hydraulic systems in warehouse',
       },
     ],
-    totalAmount: 60000,
+    itemCount: 1,
     purpose: 'Preventive maintenance',
     urgency: 'medium',
     status: 'pending',
@@ -267,8 +257,6 @@ const StaffRequisition: React.FC = () => {
         consumableName: newItem.consumable.name,
         requestedQuantity: newItem.quantity,
         unit: newItem.consumable.unit,
-        unitCost: newItem.consumable.cost,
-        totalCost: newItem.quantity * newItem.consumable.cost,
         justification: newItem.justification,
       };
       
@@ -299,7 +287,7 @@ const StaffRequisition: React.FC = () => {
         requestDate: new Date().toISOString().split('T')[0],
         ...newRequisition,
         supervisor: 'To be assigned',
-        totalAmount: newRequisition.items.reduce((sum, item) => sum + item.totalCost, 0),
+        itemCount: newRequisition.items.length,
         status: 'pending',
         expectedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       };
@@ -402,10 +390,10 @@ const StaffRequisition: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Total Value (₦)
+                    Total Items
                   </Typography>
                   <Typography variant="h4">
-                    {requisitions.reduce((sum, r) => sum + r.totalAmount, 0).toLocaleString()}
+                    {requisitions.reduce((sum, r) => sum + r.itemCount, 0)}
                   </Typography>
                 </Box>
                 <AdminPanelSettings sx={{ fontSize: 40, color: '#9c27b0' }} />
@@ -473,7 +461,6 @@ const StaffRequisition: React.FC = () => {
               <TableCell>Staff</TableCell>
               <TableCell>Department</TableCell>
               <TableCell>Items</TableCell>
-              <TableCell>Amount (₦)</TableCell>
               <TableCell>Urgency</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
@@ -496,7 +483,6 @@ const StaffRequisition: React.FC = () => {
                 </TableCell>
                 <TableCell>{requisition.department}</TableCell>
                 <TableCell>{requisition.items.length} item(s)</TableCell>
-                <TableCell>₦{requisition.totalAmount.toLocaleString()}</TableCell>
                 <TableCell>
                   <Chip
                     label={requisition.urgency}
@@ -604,7 +590,7 @@ const StaffRequisition: React.FC = () => {
             <Box sx={{ flex: '1 1 45%' }}>
               <Autocomplete
                 options={availableConsumables}
-                getOptionLabel={(option) => `${option.name} (${option.unit}) - ₦${option.cost}`}
+                getOptionLabel={(option) => `${option.name} (${option.unit})`}
                 value={newItem.consumable}
                 onChange={(_, value) => setNewItem(prev => ({ ...prev, consumable: value }))}
                 renderInput={(params) => <TextField {...params} label="Select Item" />}
@@ -649,8 +635,7 @@ const StaffRequisition: React.FC = () => {
                     <TableRow>
                       <TableCell>Item</TableCell>
                       <TableCell>Qty</TableCell>
-                      <TableCell>Unit Cost</TableCell>
-                      <TableCell>Total</TableCell>
+                      <TableCell>Justification</TableCell>
                       <TableCell>Action</TableCell>
                     </TableRow>
                   </TableHead>
@@ -659,8 +644,7 @@ const StaffRequisition: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell>{item.consumableName}</TableCell>
                         <TableCell>{item.requestedQuantity} {item.unit}</TableCell>
-                        <TableCell>₦{item.unitCost.toLocaleString()}</TableCell>
-                        <TableCell>₦{item.totalCost.toLocaleString()}</TableCell>
+                        <TableCell>{item.justification}</TableCell>
                         <TableCell>
                           <IconButton size="small" onClick={() => handleRemoveItem(index)}>
                             <Cancel />
@@ -669,9 +653,9 @@ const StaffRequisition: React.FC = () => {
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={3} sx={{ fontWeight: 'bold' }}>Total Amount:</TableCell>
+                      <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>Total Items:</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>
-                        ₦{newRequisition.items.reduce((sum, item) => sum + item.totalCost, 0).toLocaleString()}
+                        {newRequisition.items.length}
                       </TableCell>
                       <TableCell></TableCell>
                     </TableRow>
@@ -755,8 +739,6 @@ const StaffRequisition: React.FC = () => {
                     <TableRow>
                       <TableCell>Item</TableCell>
                       <TableCell>Quantity</TableCell>
-                      <TableCell>Unit Cost</TableCell>
-                      <TableCell>Total Cost</TableCell>
                       <TableCell>Justification</TableCell>
                     </TableRow>
                   </TableHead>
@@ -765,17 +747,14 @@ const StaffRequisition: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell>{item.consumableName}</TableCell>
                         <TableCell>{item.requestedQuantity} {item.unit}</TableCell>
-                        <TableCell>₦{item.unitCost.toLocaleString()}</TableCell>
-                        <TableCell>₦{item.totalCost.toLocaleString()}</TableCell>
                         <TableCell>{item.justification}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={3} sx={{ fontWeight: 'bold' }}>Total Amount:</TableCell>
+                      <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>Total Items:</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>
-                        ₦{selectedRequisition.totalAmount.toLocaleString()}
+                        {selectedRequisition.itemCount}
                       </TableCell>
-                      <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
